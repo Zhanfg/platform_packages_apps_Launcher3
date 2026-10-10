@@ -23,6 +23,7 @@ import static android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CH
 import static com.android.app.animation.Interpolators.EMPHASIZED;
 import static com.android.launcher3.AbstractFloatingView.TYPE_FOLDER;
 import static com.android.launcher3.AbstractFloatingView.TYPE_ICON_SURFACE;
+import static com.android.launcher3.AbstractFloatingView.TYPE_OPTIONS_POPUP;
 import static com.android.launcher3.AbstractFloatingView.TYPE_REBIND_SAFE;
 import static com.android.launcher3.AbstractFloatingView.getTopOpenViewWithType;
 import static com.android.launcher3.LauncherAnimUtils.HOTSEAT_SCALE_PROPERTY_FACTORY;
@@ -1037,6 +1038,12 @@ public class Launcher extends StatefulActivity<LauncherState>
 
     @Override
     public void onStateSetStart(LauncherState state) {
+        if (state == ALL_APPS) {
+            // A closing options menu may still be attached to DragLayer while
+            // its exit animation runs. Remove it before the drawer enters.
+            // This also covers menus that are already marked as closed.
+            AbstractFloatingView.closeOpenViews(this, false, TYPE_OPTIONS_POPUP);
+        }
         super.onStateSetStart(state);
         addActivityFlags(ACTIVITY_STATE_TRANSITION_ACTIVE);
 
