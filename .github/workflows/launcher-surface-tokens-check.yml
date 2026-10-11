@@ -1,0 +1,35 @@
+name: Launcher Material Surface Token Check
+
+on:
+  push:
+    branches:
+      - "fix/**"
+    paths:
+      - "res/values/styles.xml"
+      - "res/values-v29/styles.xml"
+      - "res/values-v30/styles.xml"
+      - "res/drawable/tooltip_frame.xml"
+      - "res/layout/drop_target_tool_tip.xml"
+      - "tools/qa/test_launcher_surface_tokens.py"
+      - ".github/workflows/launcher-surface-tokens-check.yml"
+  pull_request:
+    paths:
+      - "res/values/styles.xml"
+      - "res/values-v29/styles.xml"
+      - "res/values-v30/styles.xml"
+      - "res/drawable/tooltip_frame.xml"
+      - "res/layout/drop_target_tool_tip.xml"
+      - "tools/qa/test_launcher_surface_tokens.py"
+      - ".github/workflows/launcher-surface-tokens-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  source-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Material resource XML and token parity
+        run: python3 -m unittest discover -s tools/qa -p "test_launcher_surface_tokens.py" -v
