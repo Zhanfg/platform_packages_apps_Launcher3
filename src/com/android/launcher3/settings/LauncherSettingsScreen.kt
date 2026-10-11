@@ -71,6 +71,9 @@ import com.android.settingslib.spa.framework.compose.localNavController
 import com.android.settingslib.spa.widget.scaffold.SettingsScaffold
 import com.android.settingslib.spa.widget.ui.Category
 
+// Keep translation and opacity on the same clock when navigating Settings pages.
+private const val SETTINGS_NAV_DURATION_MS = 300
+
 private const val MAIN_ROUTE = "main"
 private const val GRID_ROUTE = "grid"
 private const val DOCK_ROUTE = "dock"
@@ -96,30 +99,30 @@ fun LauncherSettingsScreen(startRoute: String? = null) {
             enterTransition = {
                 slideIntoContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                    animationSpec = tween(300),
+                    animationSpec = tween(SETTINGS_NAV_DURATION_MS),
                     initialOffset = { it / 5 },
-                ) + fadeIn(tween(300, delayMillis = 75))
+                ) + fadeIn(tween(SETTINGS_NAV_DURATION_MS))
             },
             exitTransition = {
                 slideOutOfContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                    animationSpec = tween(300),
+                    animationSpec = tween(SETTINGS_NAV_DURATION_MS),
                     targetOffset = { it / 5 },
-                ) + fadeOut(tween(75))
+                ) + fadeOut(tween(SETTINGS_NAV_DURATION_MS))
             },
             popEnterTransition = {
                 slideIntoContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.End,
-                    animationSpec = tween(300),
+                    animationSpec = tween(SETTINGS_NAV_DURATION_MS),
                     initialOffset = { it / 5 },
-                ) + fadeIn(tween(300, delayMillis = 75))
+                ) + fadeIn(tween(SETTINGS_NAV_DURATION_MS))
             },
             popExitTransition = {
                 slideOutOfContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.End,
-                    animationSpec = tween(300),
+                    animationSpec = tween(SETTINGS_NAV_DURATION_MS),
                     targetOffset = { it / 5 },
-                ) + fadeOut(tween(75))
+                ) + fadeOut(tween(SETTINGS_NAV_DURATION_MS))
             },
         ) {
             composable(MAIN_ROUTE) {

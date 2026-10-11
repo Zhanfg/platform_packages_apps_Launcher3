@@ -1,0 +1,33 @@
+name: Launcher Popup Handoff Static Check
+
+on:
+  push:
+    branches:
+      - "fix/**"
+    paths:
+      - "src/com/android/launcher3/Launcher.java"
+      - "src/com/android/launcher3/AbstractFloatingView.java"
+      - "src/com/android/launcher3/popup/ArrowPopup.java"
+      - "quickstep/src/com/android/launcher3/uioverrides/states/AllAppsState.java"
+      - "tools/qa/test_launcher_popup_handoff.py"
+      - ".github/workflows/launcher-popup-handoff-check.yml"
+  pull_request:
+    paths:
+      - "src/com/android/launcher3/Launcher.java"
+      - "src/com/android/launcher3/AbstractFloatingView.java"
+      - "src/com/android/launcher3/popup/ArrowPopup.java"
+      - "quickstep/src/com/android/launcher3/uioverrides/states/AllAppsState.java"
+      - "tools/qa/test_launcher_popup_handoff.py"
+      - ".github/workflows/launcher-popup-handoff-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  source-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check popup / drawer transition invariants
+        run: python3 -m unittest discover -s tools/qa -p "test_launcher_popup_handoff.py" -v
