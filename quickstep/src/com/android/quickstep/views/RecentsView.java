@@ -2449,6 +2449,11 @@ public abstract class RecentsView<
         }
     }
 
+    /** The thumbnail loader must use the same visible-card window as the stack renderer. */
+    public boolean isStackedRecentsActive() {
+        return mStackedTransformsApplied;
+    }
+
     /** Restores stock hit regions, Z-order and animation coordinates on exit. */
     private void clearStackedRecentsTransforms() {
         if (!mStackedTransformsApplied) {
