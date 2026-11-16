@@ -24,10 +24,20 @@ for file in AndroidManifest.xml AndroidManifest-common.xml; do
   cp "$FORK/$file" "$ADAPTER/$file"
 done
 
-# The adapter uses a premerged AOSP resources folder rather than the Soong overlays.
-# Overlay fork resources here and retain its generated bridging resources.
-mkdir -p "$ADAPTER/res_merged"
-rsync -a "$FORK/res/" "$ADAPTER/res_merged/"
+# Flatten Soong resource overlays into ONE Gradle source directory. We cannot point
+# Gradle at both Quickstep res and premerged res or it treats same-name colors/styles
+# as errors instead of applying the original Soong priority rules.
+python3 "$FORK/tools/build/merge_android17_resources.py" "$ADAPTER" "$FORK"
+python3 - "$ADAPTER/build.gradle" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+target = "'res_merged', 'quickstep/res'"
+if s.count(target) != 1:
+    raise SystemExit("Adapter Quickstep resource graph changed; refusing ambiguous build")
+p.write_text(s.replace(target, "'res_merged'"))
+PY
 
 # Smartspacer is a module in uwuAOSP's Soong tree. Stage SDK sources and resources
 # here for the Gradle attempt, rather than silently dropping uwuAOSP features.
