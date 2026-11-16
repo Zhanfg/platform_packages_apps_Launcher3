@@ -34,7 +34,8 @@ class SettingsNavigationMotionTest(unittest.TestCase):
 
     def test_no_phase_offset_in_route_transitions(self):
         self.assertNotIn("delayMillis", self.host)
-        self.assertNotRegex(self.host, r"fade(?:In|Out)\\(tween\\(\\d+")
+        self.assertNotIn("fadeIn(tween(", self.host)
+        self.assertNotIn("fadeOut(tween(", self.host)
 
     def test_slide_direction_is_unchanged(self):
         self.assertEqual(self.host.count("SlideDirection.Start"), 2)
