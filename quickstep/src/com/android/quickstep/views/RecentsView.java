@@ -142,6 +142,7 @@ import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.Insettable;
 import com.android.launcher3.MotionEventsUtils;
 import com.android.launcher3.PagedView;
+import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.R;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.anim.AnimatedFloat;
@@ -2392,10 +2393,45 @@ public abstract class RecentsView<
         }
         int scroll = getPagedOrientationHandler().getPrimaryScroll(this);
         mClearAllButton.onRecentsViewScroll(scroll, mOverviewGridEnabled);
+        updateStackedRecents(scroll);
 
         // The clear all button is pinned and always visible, so the actions bar no longer
         // alternates with it at the end of the strip.
         mActionsView.getIndexScrollAlpha().updateValue(1f);
+    }
+
+    /**
+     * Experimental iOS-like stack rendering. Keep Quickstep's page scroll and gesture math
+     * untouched: the additional transforms are composed inside TaskView and can be reset.
+     */
+    private void updateStackedRecents(int scroll) {
+        final boolean enabled =
+                LauncherPrefs.get(getContext()).get(LauncherPrefs.STACKED_RECENTS_ENABLED)
+                        && mOverviewStateEnabled
+                        && !showAsGrid()
+                        && !isSplitSelectionActive()
+                        && !showAsFullscreen()
+                        && !mContainer.getDeviceProfile().getDeviceProperties().isLargeScreen();
+        final var orientation = getPagedOrientationHandler();
+        final int viewportSize = orientation.getPrimaryValue(getWidth(), getHeight());
+        final float viewportCenter = scroll + viewportSize * 0.5f;
+        final boolean horizontal = orientation.getPrimaryValue(1, 0) == 1;
+
+        for (TaskView task : getTaskViews()) {
+            final int cardSize = orientation.getMeasuredSize(task);
+            if (!enabled || viewportSize <= 0 || cardSize <= 0) {
+                task.setStackedOverviewTransform(0f, 0f, 1f, 0f);
+                continue;
+            }
+            final float cardCenter = orientation.getChildStart(task) + cardSize * 0.5f;
+            final StackedRecentsGeometry.Transform transform = StackedRecentsGeometry.calculate(
+                    cardCenter - viewportCenter, cardSize + getPageSpacing(), cardSize);
+            task.setStackedOverviewTransform(
+                    horizontal ? transform.primaryOffsetPx : 0f,
+                    horizontal ? 0f : transform.primaryOffsetPx,
+                    transform.scaleFactor,
+                    transform.depthPx);
+        }
     }
 
     @Override
