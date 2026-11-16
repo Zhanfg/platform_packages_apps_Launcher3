@@ -15,6 +15,7 @@
  */
 package com.android.launcher3.settings
 
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
@@ -28,6 +29,7 @@ import com.android.settingslib.spa.framework.theme.SettingsTheme
  * This does not replace SettingsLib components, the ROM color palette, or the
  * Quickstep/View animation pipeline.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun LauncherExpressiveSettingsTheme(content: @Composable () -> Unit) {
     SettingsTheme {
