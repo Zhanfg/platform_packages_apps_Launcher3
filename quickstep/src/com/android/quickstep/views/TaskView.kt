@@ -1818,18 +1818,24 @@ constructor(
      * Pass (0, 0, 1, 0) to restore the native overview layout.
      */
     fun setStackedOverviewTransform(offsetX: Float, offsetY: Float, scale: Float, depth: Float) {
-        if (stackedOffsetX == offsetX && stackedOffsetY == offsetY &&
-            stackedScale == scale && stackedDepth == depth) {
-            return
+        // Translation changes on nearly every scroll frame; scale and Z often do not.
+        // Updating FullscreenDrawParams on every translation-only frame is unnecessary.
+        if (stackedOffsetX != offsetX) {
+            stackedOffsetX = offsetX
+            applyTranslationX()
         }
-        stackedOffsetX = offsetX
-        stackedOffsetY = offsetY
-        stackedScale = scale
-        stackedDepth = depth
-        applyTranslationX()
-        applyTranslationY()
-        applyScale()
-        translationZ = depth
+        if (stackedOffsetY != offsetY) {
+            stackedOffsetY = offsetY
+            applyTranslationY()
+        }
+        if (stackedScale != scale) {
+            stackedScale = scale
+            applyScale()
+        }
+        if (stackedDepth != depth) {
+            stackedDepth = depth
+            translationZ = depth
+        }
     }
 
     private fun onGridProgressChanged() {
