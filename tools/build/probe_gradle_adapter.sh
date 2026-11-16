@@ -24,6 +24,25 @@ for file in AndroidManifest.xml AndroidManifest-common.xml; do
   cp "$FORK/$file" "$ADAPTER/$file"
 done
 
+# AGP 9 requires minSdk/targetSdk to come from defaultConfig, not <uses-sdk>.
+# Preserve tools:overrideLibrary for Smartspacer, and do not touch Soong manifests.
+python3 - "$ADAPTER/AndroidManifest.xml" <<'PY'
+from pathlib import Path
+import re
+import sys
+p = Path(sys.argv[1])
+s = p.read_text(encoding="utf-8")
+tags = re.findall(r"<uses-sdk\\b[^>]*?/>", s, flags=re.S)
+if len(tags) != 1:
+    raise SystemExit(f"Expected exactly one root uses-sdk tag, got {len(tags)}")
+tag = tags[0]
+for attr in ("minSdkVersion", "targetSdkVersion", "maxSdkVersion"):
+    tag = re.sub(r'\\s+android:' + attr + r'="[^"]*"', "", tag)
+s = s.replace(tags[0], tag)
+p.write_text(s, encoding="utf-8")
+print("AGP 9 SDK attributes removed from staging manifest; overrideLibrary preserved")
+PY
+
 # Flatten Soong resource overlays into ONE Gradle source directory. We cannot point
 # Gradle at both Quickstep res and premerged res or it treats same-name colors/styles
 # as errors instead of applying the original Soong priority rules.
