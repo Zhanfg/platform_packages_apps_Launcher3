@@ -66,6 +66,24 @@ class ExpressiveSurfaceTest(unittest.TestCase):
                 root = ElementTree.parse(ROOT / "res/drawable" / filename).getroot()
                 self.assertEqual(root.find(tag).get(ANDROID + attribute), token)
 
+        # Android 17 actually selects drawable-v28 overrides for these names.
+        for qualifier in ("drawable", "drawable-v28"):
+            for name, tag, attr, expected in (
+                ("round_rect_folder.xml", "corners", "radius",
+                 "@dimen/launcher_expressive_folder_radius"),
+                ("round_rect_primary.xml", "solid", "color",
+                 "@color/materialColorPrimary"),
+            ):
+                with self.subTest(qualifier=qualifier, resource=name):
+                    root = ElementTree.parse(ROOT / "res" / qualifier / name).getroot()
+                    self.assertEqual(root.find(tag).get(ANDROID + attr), expected)
+
+        top = ElementTree.parse(
+            ROOT / "res/drawable-v28/top_round_rect_primary.xml"
+        ).getroot()
+        self.assertEqual(top.find("solid").get(ANDROID + "color"),
+                         "@color/materialColorPrimary")
+
         dims = ElementTree.parse(ROOT / "res/values/dimens.xml").getroot()
         dim = next(d for d in dims.findall("dimen")
                    if d.get("name") == "launcher_expressive_folder_radius")
