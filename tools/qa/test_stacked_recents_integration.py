@@ -49,6 +49,29 @@ class StackedRecentsSourceTest(unittest.TestCase):
             with self.subTest(check=check):
                 self.assertIn(check, method)
 
+    def test_live_scroll_updates_stacked_recents_each_frame(self):
+        callback = self.recents.split(
+            "protected void onScrollChanged(int l, int t, int oldl, int oldt)", 1
+        )[1].split("    @Override", 1)[0]
+        self.assertIn("super.onScrollChanged(l, t, oldl, oldt)", callback)
+        self.assertIn(
+            "updateStackedRecents(getPagedOrientationHandler().getPrimaryScroll(this));",
+            callback,
+        )
+        self.assertIn("dispatchScrollChanged();", callback)
+        self.assertLess(callback.index("updateStackedRecents("),
+                        callback.index("dispatchScrollChanged();"))
+
+    def test_transforms_update_only_dirty_axes(self):
+        method = self.task.split(
+            "fun setStackedOverviewTransform(", 1
+        )[1].split("private fun onGridProgressChanged()", 1)[0]
+        self.assertIn("if (stackedOffsetX != offsetX)", method)
+        self.assertIn("if (stackedOffsetY != offsetY)", method)
+        self.assertIn("if (stackedScale != scale)", method)
+        self.assertIn("if (stackedDepth != depth)", method)
+        self.assertEqual(method.count("applyScale()"), 1)
+
     def test_task_transform_is_additive(self):
         for expression in (
             "stackedScale *",
