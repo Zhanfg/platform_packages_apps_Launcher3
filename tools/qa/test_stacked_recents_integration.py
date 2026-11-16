@@ -40,8 +40,9 @@ class StackedRecentsSourceTest(unittest.TestCase):
             "!showAsFullscreen()",
             ".isLargeScreen()",
             "task.setStackedOverviewTransform(0f, 0f, 1f, 0f)",
-            "if (!enabled && !mStackedTransformsApplied)",
-            "mStackedTransformsApplied = enabled",
+            "if (!enabled)",
+            "clearStackedRecentsTransforms();",
+            "mStackedTransformsApplied = true",
         ):
             with self.subTest(check=check):
                 self.assertIn(check, method)
@@ -56,6 +57,23 @@ class StackedRecentsSourceTest(unittest.TestCase):
         ):
             with self.subTest(expression=expression):
                 self.assertIn(expression, self.task)
+
+    def test_exit_and_reset_restore_native_task_transforms(self):
+        method = self.recents.split(
+            "private void clearStackedRecentsTransforms()", 1
+        )[1].split("    @Override", 1)[0]
+        self.assertIn("if (!mStackedTransformsApplied)", method)
+        self.assertIn("mStackedTransformsApplied = false;", method)
+        self.assertIn("task.setStackedOverviewTransform(0f, 0f, 1f, 0f)", method)
+        state = self.recents.split(
+            "public void setOverviewStateEnabled(boolean enabled)", 1
+        )[1].split("public void setTaskBorderEnabled", 1)[0]
+        self.assertIn("if (!enabled)", state)
+        self.assertIn("clearStackedRecentsTransforms();", state)
+        reset = self.recents.split("public void reset()", 1)[1].split(
+            "setCurrentTask(-1);", 1
+        )[0]
+        self.assertIn("clearStackedRecentsTransforms();", reset)
 
     def test_stack_thumbnail_visibility_covers_exposed_neighbors(self):
         method = self.recents.split(
