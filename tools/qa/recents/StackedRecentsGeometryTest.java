@@ -101,7 +101,9 @@ public final class StackedRecentsGeometryTest {
                     StackedRecentsGeometry.calculate((boundary - d) * 100f, 100f, 80f);
             StackedRecentsGeometry.Transform right =
                     StackedRecentsGeometry.calculate((boundary + d) * 100f, 100f, 80f);
-            check(Math.abs(left.primaryOffsetPx - right.primaryOffsetPx) < 0.15f);
+            // Samples are 0.2 px apart: the native-to-stack slope is ~0.768,
+            // so the expected delta near page 3 is about 0.154 px, not 0.15.
+            check(Math.abs(left.primaryOffsetPx - right.primaryOffsetPx) < 0.25f);
             check(Math.abs(left.scaleFactor - right.scaleFactor) < 0.001f);
             check(Math.abs(left.depthPx - right.depthPx) < 0.01f);
         }
