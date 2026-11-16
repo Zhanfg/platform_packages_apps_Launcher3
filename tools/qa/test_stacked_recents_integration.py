@@ -100,6 +100,34 @@ class StackedRecentsSourceTest(unittest.TestCase):
         )[0]
         self.assertIn("clearStackedRecentsTransforms();", reset)
 
+    def test_stack_cards_prevent_accidental_tap_to_home(self):
+        dispatch = self.recents.split("public boolean onTouchEvent(MotionEvent ev)", 1)[1].split(
+            "protected void onNotSnappingToPageInFreeScroll()", 1
+        )[0]
+        self.assertIn("&& !isTouchInsideStackCard(x, y)", dispatch)
+        hit = self.recents.split("private boolean isTouchInsideStackCard(float x, float y)", 1)[1].split(
+            "@Override", 1
+        )[0]
+        self.assertIn("if (!mStackedTransformsApplied)", hit)
+        self.assertIn("task.getMatrix().mapRect(mTempRectF)", hit)
+        self.assertIn("mTempRectF.offset(task.getLeft(), task.getTop())", hit)
+        self.assertIn("getScrollX()", hit)
+        self.assertIn("getScrollY()", hit)
+        self.assertIn("mTempRectF.contains(contentX, contentY)", hit)
+        # Child event dispatch must continue to be performed by Android ViewGroup.
+        self.assertNotIn("launchWithAnimation()", hit)
+        self.assertNotIn("dispatchTouchEvent", hit)
+
+    def test_first_overview_entry_initializes_stack_and_thumbnails(self):
+        state = self.recents.split("public void setOverviewStateEnabled(boolean enabled)", 1)[1].split(
+            "public void setTaskBorderEnabled", 1
+        )[0]
+        self.assertIn("LauncherPrefs.STACKED_RECENTS_ENABLED", state)
+        self.assertIn("post(() ->", state)
+        self.assertIn("if (mOverviewStateEnabled && isAttachedToWindow())", state)
+        self.assertIn("updateCurveProperties();", state)
+        self.assertIn("loadVisibleTaskData();", state)
+
     def test_stack_thumbnail_visibility_covers_exposed_neighbors(self):
         method = self.recents.split(
             "public boolean isTaskViewVisible(TaskView tv)", 1
