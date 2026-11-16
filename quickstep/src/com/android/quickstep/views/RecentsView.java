@@ -5818,6 +5818,10 @@ public abstract class RecentsView<
     @Override
     protected void onScrollChanged(int l, int t, int oldl, int oldt) {
         super.onScrollChanged(l, t, oldl, oldt);
+        // This is the actual per-frame scroll callback. updateCurveProperties() is not
+        // called by PagedView for every gesture frame, so the stack must track scroll here.
+        // Do not rerun the unrelated Clear All / actions alpha calculations.
+        updateStackedRecents(getPagedOrientationHandler().getPrimaryScroll(this));
         dispatchScrollChanged();
     }
 
