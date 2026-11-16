@@ -25,8 +25,11 @@ public final class StackedRecentsGeometryTest {
         signedDistanceMirrorsForRtl();
         depthAndScaleAreBounded();
         fractionalScrollProducesContinuousMovement();
+        farCardsDoNotPileUpAtTheStackEdge();
+        stackExitHasNoJump();
+        swipeThroughExitMaintainsDirectionSymmetry();
         invalidInputsAreAlwaysIdentity();
-        System.out.println("StackedRecentsGeometry: 6 host tests passed");
+        System.out.println("StackedRecentsGeometry: 9 host tests passed");
     }
 
     private static void focusedCardKeepsNativePosition() {
@@ -71,6 +74,51 @@ public final class StackedRecentsGeometryTest {
                 StackedRecentsGeometry.calculate(50.01f, 100f, 80f);
         check(Math.abs(right.primaryOffsetPx - left.primaryOffsetPx) < 0.05f);
         check(Math.abs(right.scaleFactor - left.scaleFactor) < 0.0001f);
+    }
+
+    private static void farCardsDoNotPileUpAtTheStackEdge() {
+        for (float pages : new float[] {4f, 5f, 8f, 100f}) {
+            for (float sign : new float[] {-1f, 1f}) {
+                StackedRecentsGeometry.Transform t =
+                        StackedRecentsGeometry.calculate(sign * pages * 100f, 100f, 80f);
+                near(0f, t.primaryOffsetPx);
+                near(1f, t.scaleFactor);
+                near(0f, t.depthPx);
+            }
+        }
+        StackedRecentsGeometry.Transform near =
+                StackedRecentsGeometry.calculate(300f, 100f, 80f);
+        check(300f + near.primaryOffsetPx < 100f);
+        StackedRecentsGeometry.Transform far =
+                StackedRecentsGeometry.calculate(400f, 100f, 80f);
+        check(400f + far.primaryOffsetPx > 300f);
+    }
+
+    private static void stackExitHasNoJump() {
+        for (float boundary : new float[] {3f, 4f}) {
+            float d = 0.001f;
+            StackedRecentsGeometry.Transform left =
+                    StackedRecentsGeometry.calculate((boundary - d) * 100f, 100f, 80f);
+            StackedRecentsGeometry.Transform right =
+                    StackedRecentsGeometry.calculate((boundary + d) * 100f, 100f, 80f);
+            check(Math.abs(left.primaryOffsetPx - right.primaryOffsetPx) < 0.15f);
+            check(Math.abs(left.scaleFactor - right.scaleFactor) < 0.001f);
+            check(Math.abs(left.depthPx - right.depthPx) < 0.01f);
+        }
+    }
+
+    private static void swipeThroughExitMaintainsDirectionSymmetry() {
+        for (int steps = 300; steps <= 400; ++steps) {
+            float x = steps / 100f * 100f;
+            StackedRecentsGeometry.Transform right =
+                    StackedRecentsGeometry.calculate(x, 100f, 80f);
+            StackedRecentsGeometry.Transform left =
+                    StackedRecentsGeometry.calculate(-x, 100f, 80f);
+            near(-left.primaryOffsetPx, right.primaryOffsetPx);
+            near(left.scaleFactor, right.scaleFactor);
+            near(left.depthPx, right.depthPx);
+            check(right.scaleFactor >= 0.775f && right.scaleFactor <= 1f);
+        }
     }
 
     private static void invalidInputsAreAlwaysIdentity() {
