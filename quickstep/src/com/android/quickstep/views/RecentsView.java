@@ -2399,6 +2399,9 @@ public abstract class RecentsView<
      */
     public void updateCurveProperties() {
         if (getPageCount() == 0 || getPageAt(0).getMeasuredWidth() == 0) {
+            if (!hasTaskViews()) {
+                clearStackedRecentsTransforms();
+            }
             return;
         }
         int scroll = getPagedOrientationHandler().getPrimaryScroll(this);
@@ -2422,7 +2425,7 @@ public abstract class RecentsView<
                         && !isSplitSelectionActive()
                         && !showAsFullscreen()
                         && !mContainer.getDeviceProfile().getDeviceProperties().isLargeScreen();
-        if (!enabled) {
+        if (!enabled || !hasTaskViews()) {
             clearStackedRecentsTransforms();
             return;
         }
