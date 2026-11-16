@@ -1681,7 +1681,8 @@ public abstract class RecentsView<
                         if (!clearAllButtonDeadZoneConsumed && !cameFromNavBar
                                 && !mTaskViewDeadZoneRect.contains(adjustedX, y)
                                 && !mTopRowDeadZoneRect.contains(adjustedX, y)
-                                && !mBottomRowDeadZoneRect.contains(adjustedX, y)) {
+                                && !mBottomRowDeadZoneRect.contains(adjustedX, y)
+                                && !isTouchInsideStackCard(x, y)) {
                             mTouchDownToStartHome = true;
                         }
                     }
@@ -1692,6 +1693,34 @@ public abstract class RecentsView<
         }
 
         return isHandlingTouch();
+    }
+
+    /**
+     * The original empty-area dead zone uses the untransformed carousel geometry.
+     * In stacked overview a card can move into that area; do not interpret touches
+     * on its visually transformed bounds as "tap outside to go home".
+     *
+     * ViewGroup still owns child dispatch, Z sorting, and gesture interception.
+     * This method intentionally does not launch or consume any touch itself.
+     */
+    private boolean isTouchInsideStackCard(float x, float y) {
+        if (!mStackedTransformsApplied) {
+            return false;
+        }
+        final float contentX = x + getScrollX();
+        final float contentY = y + getScrollY();
+        for (TaskView task : getTaskViews()) {
+            if (task.getVisibility() != VISIBLE || task.getAlpha() <= 0f) {
+                continue;
+            }
+            mTempRectF.set(0f, 0f, task.getWidth(), task.getHeight());
+            task.getMatrix().mapRect(mTempRectF);
+            mTempRectF.offset(task.getLeft(), task.getTop());
+            if (mTempRectF.contains(contentX, contentY)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
