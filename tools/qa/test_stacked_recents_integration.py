@@ -40,6 +40,8 @@ class StackedRecentsSourceTest(unittest.TestCase):
             "!showAsFullscreen()",
             ".isLargeScreen()",
             "task.setStackedOverviewTransform(0f, 0f, 1f, 0f)",
+            "if (!enabled && !mStackedTransformsApplied)",
+            "mStackedTransformsApplied = enabled",
         ):
             with self.subTest(check=check):
                 self.assertIn(check, method)
