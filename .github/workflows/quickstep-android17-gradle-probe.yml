@@ -1,0 +1,98 @@
+name: Experimental Android 17 Quickstep APK Build
+
+on:
+  push:
+    branches:
+      - "build/uwu17-quickstep-gradle-probe"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact uwuAOSP fork
+        uses: actions/checkout@v4
+        with:
+          path: fork
+          persist-credentials: false
+
+      - name: Checkout pinned external Android 17 Gradle scaffold
+        uses: actions/checkout@v4
+        with:
+          repository: yuchuangu85/Launcher3
+          ref: 39c232d7e4166daebee06f9e3961c5edd1cc6a15
+          path: adapter
+          lfs: true
+          persist-credentials: false
+
+      - name: Install Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Gradle 9.7.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+
+      - name: Ensure Android 17 SDK exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install "platforms;android-37" "build-tools;37.0.0"
+          echo "sdk.dir=$ANDROID_HOME" > adapter/local.properties
+
+      - name: Stage uwuAOSP sources, keeping third-party Gradle adapter separate
+        run: |
+          bash fork/tools/build/probe_gradle_adapter.sh fork adapter
+
+      - name: Compile Android 17 Launcher3QuickStep flavor
+        shell: bash
+        working-directory: adapter
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace --max-workers=2 \
+            -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" \
+            assembleWithquickstepDebug 2>&1 | tee "$RUNNER_TEMP/uwu-quickstep-build.log"
+
+      - name: Verify and stage resulting APK
+        if: success()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, zipfile, shutil
+          apks=list(Path("adapter/build/outputs/apk").rglob("*.apk"))
+          if len(apks) != 1: raise SystemExit(f"Expected one APK, found {apks}")
+          p=apks[0]
+          with zipfile.ZipFile(p) as z:
+              assert z.testzip() is None
+              assert "AndroidManifest.xml" in z.namelist()
+              assert any(n.startswith("classes") and n.endswith(".dex") for n in z.namelist())
+          shutil.copyfile(p, "Launcher3QuickStep-uwu17-gradle-experimental.apk")
+          print("APK",p,"SHA256",hashlib.sha256(p.read_bytes()).hexdigest())
+          PY
+
+      - name: Upload experimental APK only on actual compile success
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uwu17-gradle-quickstep-experimental
+          path: Launcher3QuickStep-uwu17-gradle-experimental.apk
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload build diagnostics, including failure output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uwu17-gradle-probe-logs
+          path: ${{ runner.temp }}/uwu-quickstep-build.log
+          retention-days: 7
+          if-no-files-found: ignore
