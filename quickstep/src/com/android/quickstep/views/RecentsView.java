@@ -1383,8 +1383,12 @@ public abstract class RecentsView<
             int screenEnd = screenStart + getPagedOrientationHandler().getMeasuredSize(this);
             return isTaskViewWithinBounds(tv, screenStart, screenEnd, /*taskViewTranslation=*/ 0);
         } else {
-            // For now, just check if it's the active task or an adjacent task
-            return Math.abs(indexOfChild(tv) - getNextPage()) <= 1;
+            // An overlapping stack exposes more than the usual neighboring cards. Keep
+            // their thumbnails eligible for loading, or they can appear blank on swipe.
+            // The native visibility limit stays unchanged when the experiment is off.
+            final int neighbors = mStackedTransformsApplied
+                    ? (int) StackedRecentsGeometry.STACK_EXIT_DISTANCE : 1;
+            return Math.abs(indexOfChild(tv) - getNextPage()) <= neighbors;
         }
     }
 
@@ -3910,6 +3914,9 @@ public abstract class RecentsView<
         setImportantForAccessibility(isModal() ? IMPORTANT_FOR_ACCESSIBILITY_NO
                 : IMPORTANT_FOR_ACCESSIBILITY_AUTO);
         recalculateTaskViewScreenEdgeIntersections();
+        // Removing/reordering a task changes the native page centers. Recompute the
+        // visual stack after layout instead of leaving stale transforms until a swipe.
+        updateCurveProperties();
     }
 
     private void updatePivots() {
