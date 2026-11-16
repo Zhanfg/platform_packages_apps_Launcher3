@@ -520,6 +520,8 @@ public abstract class RecentsView<
     @Nullable
     protected Float mLastComputedTaskEndPushOutDistance = null;
     protected boolean mEnableDrawingLiveTile = false;
+    // Avoid iterating over task cards on every scroll frame when stack mode is disabled.
+    private boolean mStackedTransformsApplied = false;
     protected final Rect mTempRect = new Rect();
     protected final RectF mTempRectF = new RectF();
     private final PointF mTempPointF = new PointF();
@@ -2412,6 +2414,10 @@ public abstract class RecentsView<
                         && !isSplitSelectionActive()
                         && !showAsFullscreen()
                         && !mContainer.getDeviceProfile().getDeviceProperties().isLargeScreen();
+        if (!enabled && !mStackedTransformsApplied) {
+            return;
+        }
+        mStackedTransformsApplied = enabled;
         final var orientation = getPagedOrientationHandler();
         final int viewportSize = orientation.getPrimaryValue(getWidth(), getHeight());
         final float viewportCenter = scroll + viewportSize * 0.5f;
