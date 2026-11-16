@@ -21,5 +21,5 @@ import com.android.launcher3.R
 /** Shared dynamic surface token for both the View and Compose QSB implementations. */
 internal object LauncherExpressiveSearchColors {
     fun container(context: Context): Int =
-        context.getColor(R.color.materialColorSurfaceContainerHigh)
+        context.getColor(R.color.materialColorSurfaceContainer)
 }
