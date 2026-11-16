@@ -57,6 +57,31 @@ class StackedRecentsSourceTest(unittest.TestCase):
             with self.subTest(expression=expression):
                 self.assertIn(expression, self.task)
 
+    def test_stack_thumbnail_visibility_covers_exposed_neighbors(self):
+        method = self.recents.split(
+            "public boolean isTaskViewVisible(TaskView tv)", 1
+        )[1].split("public boolean isTaskViewFullyVisible(TaskView tv)", 1)[0]
+        self.assertIn("mStackedTransformsApplied", method)
+        self.assertIn("StackedRecentsGeometry.STACK_EXIT_DISTANCE", method)
+        # When disabled, the original AOSP one-neighbor visibility behavior remains.
+        self.assertIn(": 1;", method)
+
+    def test_task_reflow_recalculates_stack_after_layout(self):
+        method = self.recents.split(
+            "protected void onLayout(boolean changed, int left, int top, int right, int bottom)", 1
+        )[1].split("private void updatePivots()", 1)[0]
+        self.assertIn("super.onLayout(changed, left, top, right, bottom)", method)
+        self.assertIn("recalculateTaskViewScreenEdgeIntersections();", method)
+        self.assertIn("updateCurveProperties();", method)
+        self.assertLess(method.index("super.onLayout("), method.index("updateCurveProperties();"))
+
+    def test_z_order_matches_visual_stack(self):
+        self.assertIn("translationZ = depth", self.task)
+        self.assertIn("translationZ = stackedDepth", self.task)
+        self.assertIn("translationZ = stackedDepth", self.task.split("fun resetViewTransforms()", 1)[1])
+        self.assertIn("stackedOffsetX", self.task)
+        self.assertIn("stackedOffsetY", self.task)
+
     def test_experiment_only_in_developer_options(self):
         self.assertIn(
             "if (BuildConfig.IS_STUDIO_BUILD || developerOptionsEnabled) {\n"
