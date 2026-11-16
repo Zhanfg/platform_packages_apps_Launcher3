@@ -280,6 +280,10 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
         val SHOW_GESTURE_NAVIGATION_HINT =
             backedUpItem("show_gesture_navigation_hint", true, EncryptionType.DEVICE_PROTECTED)
 
+        // Experimental overview geometry; default stays on stock Quickstep.
+        @JvmField
+        val STACKED_RECENTS_ENABLED = backedUpItem("pref_stacked_recents_enabled", false)
+
         @JvmField
         val DEVICE_TYPE =
             backedUpItem(
