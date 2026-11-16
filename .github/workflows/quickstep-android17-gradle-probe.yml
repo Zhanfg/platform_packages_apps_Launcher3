@@ -40,12 +40,17 @@ jobs:
         with:
           gradle-version: '9.7.1'
 
-      - name: Ensure Android 17 SDK exists
+      - name: Initialize Android SDK and command-line tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-37 build-tools;37.0.0"
+
+      - name: Verify Android 17 SDK installation
         shell: bash
         run: |
           set -euo pipefail
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager --install "platforms;android-37" "build-tools;37.0.0"
+          test -f "$ANDROID_HOME/platforms/android-37/android.jar"
+          test -x "$ANDROID_HOME/build-tools/37.0.0/aapt2"
           echo "sdk.dir=$ANDROID_HOME" > adapter/local.properties
 
       - name: Stage uwuAOSP sources, keeping third-party Gradle adapter separate
