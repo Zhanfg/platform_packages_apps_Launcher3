@@ -30,6 +30,12 @@ class ExpressiveSurfaceTest(unittest.TestCase):
         # Explicit custom settings must remain untouched by the themed branch.
         self.assertIn("else backgroundColor", self.qsb_compose)
 
+    def test_qsb_action_icons_use_expressive_size_and_reduced_motion(self):
+        self.assertIn("SizeTransform(clip = false)", self.qsb_compose)
+        self.assertIn("Spring.DampingRatioLowBouncy", self.qsb_compose)
+        self.assertIn("ValueAnimator.areAnimatorsEnabled()", self.qsb_compose)
+        self.assertIn("tween(0)", self.qsb_compose)
+
     def test_settings_search_is_expressive_and_focus_aware(self):
         src = self.settings.split("private fun SettingsSearchBar(", 1)[1].split(
             "private data class SettingsSearchResult", 1
