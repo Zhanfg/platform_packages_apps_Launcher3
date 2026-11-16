@@ -542,6 +542,9 @@ private fun MainSettingsContent(
                     )
                 }
                 NavigationBarHintPreference(context)
+                if (BuildConfig.IS_STUDIO_BUILD || developerOptionsEnabled) {
+                    StackedRecentsPreference(context)
+                }
             }
             Category(title = context.getString(R.string.settings_home_screen_section)) {
                 AddIconsToHomePreference(context)
@@ -685,6 +688,38 @@ private fun NavigationBarHintPreference(context: Context) {
             override val onCheckedChange = { newChecked: Boolean ->
                 LauncherPrefs.get(context).put(
                     LauncherPrefs.SHOW_GESTURE_NAVIGATION_HINT,
+                    newChecked,
+                )
+                enabled = newChecked
+            }
+        }
+    )
+}
+
+/**
+ * Exposed only under Developer options until Quickstep gestures and dismissal pass device QA.
+ * The default remains the AOSP overview layout.
+ */
+@Composable
+private fun StackedRecentsPreference(context: Context) {
+    var enabled by remember(context) {
+        mutableStateOf(LauncherPrefs.get(context).get(LauncherPrefs.STACKED_RECENTS_ENABLED))
+    }
+
+    SwitchPreference(
+        model = object : SwitchPreferenceModel {
+            override val title = context.getString(R.string.stacked_recents_experimental_title)
+            override val summary = {
+                context.getString(R.string.stacked_recents_experimental_summary)
+            }
+            override val icon = settingsPreferenceIcon(
+                Icons.Outlined.Apps,
+                SettingsIconTone.Secondary,
+            )
+            override val checked = { enabled }
+            override val onCheckedChange = { newChecked: Boolean ->
+                LauncherPrefs.get(context).put(
+                    LauncherPrefs.STACKED_RECENTS_ENABLED,
                     newChecked,
                 )
                 enabled = newChecked
