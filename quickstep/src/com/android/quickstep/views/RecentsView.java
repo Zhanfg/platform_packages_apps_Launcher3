@@ -1530,6 +1530,10 @@ public abstract class RecentsView<
             mHelper.startPreloading();
         }
         mOverviewStateEnabled = enabled;
+        if (!enabled) {
+            // Do not carry stacking offsets into the app launch / home gesture animation.
+            clearStackedRecentsTransforms();
+        }
         updateTaskStackListenerState();
         mOrientationState.setRotationWatcherEnabled(enabled);
         if (!enabled) {
@@ -2418,10 +2422,11 @@ public abstract class RecentsView<
                         && !isSplitSelectionActive()
                         && !showAsFullscreen()
                         && !mContainer.getDeviceProfile().getDeviceProperties().isLargeScreen();
-        if (!enabled && !mStackedTransformsApplied) {
+        if (!enabled) {
+            clearStackedRecentsTransforms();
             return;
         }
-        mStackedTransformsApplied = enabled;
+        mStackedTransformsApplied = true;
         final var orientation = getPagedOrientationHandler();
         final int viewportSize = orientation.getPrimaryValue(getWidth(), getHeight());
         final float viewportCenter = scroll + viewportSize * 0.5f;
@@ -2429,7 +2434,7 @@ public abstract class RecentsView<
 
         for (TaskView task : getTaskViews()) {
             final int cardSize = orientation.getMeasuredSize(task);
-            if (!enabled || viewportSize <= 0 || cardSize <= 0) {
+            if (viewportSize <= 0 || cardSize <= 0) {
                 task.setStackedOverviewTransform(0f, 0f, 1f, 0f);
                 continue;
             }
@@ -2441,6 +2446,17 @@ public abstract class RecentsView<
                     horizontal ? 0f : transform.primaryOffsetPx,
                     transform.scaleFactor,
                     transform.depthPx);
+        }
+    }
+
+    /** Restores stock hit regions, Z-order and animation coordinates on exit. */
+    private void clearStackedRecentsTransforms() {
+        if (!mStackedTransformsApplied) {
+            return;
+        }
+        mStackedTransformsApplied = false;
+        for (TaskView task : getTaskViews()) {
+            task.setStackedOverviewTransform(0f, 0f, 1f, 0f);
         }
     }
 
@@ -2547,6 +2563,7 @@ public abstract class RecentsView<
             ? extends StatefulContainer<STATE_TYPE>> getStateManager();
 
     public void reset() {
+        clearStackedRecentsTransforms();
         Log.d(TAG, "reset - mEnableDrawingLiveTile: " + mEnableDrawingLiveTile
                 + ", mRecentsAnimationController: " + mRecentsAnimationController);
         setCurrentTask(-1);
