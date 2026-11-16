@@ -2432,7 +2432,9 @@ public abstract class RecentsView<
         mStackedTransformsApplied = true;
         final var orientation = getPagedOrientationHandler();
         final int viewportSize = orientation.getPrimaryValue(getWidth(), getHeight());
-        final float viewportCenter = scroll + viewportSize * 0.5f;
+        // PagedView applies scale and pivot when calculating its actual screen center.
+        // Using scroll + half the width drifts during overview transition animations.
+        final float viewportCenter = getScreenCenter(scroll);
         final boolean horizontal = orientation.getPrimaryValue(1, 0) == 1;
 
         for (TaskView task : getTaskViews()) {
