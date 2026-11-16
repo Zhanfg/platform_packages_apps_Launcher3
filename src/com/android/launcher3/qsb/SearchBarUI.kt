@@ -34,7 +34,7 @@ object SearchBarUI {
         val nightMode = context.resources.configuration.uiMode and
             Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         val baseColor = if (themed) {
-            Themes.getColorBackgroundFloating(context)
+            LauncherExpressiveSearchColors.container(context)
         } else if (nightMode) {
             0xFF202124.toInt()
         } else {

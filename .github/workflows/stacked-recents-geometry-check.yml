@@ -1,0 +1,55 @@
+name: Stacked Recents Geometry JVM Check
+
+on:
+  push:
+    branches:
+      - "feat/uwu17-stacked-recents-foundation"
+    paths:
+      - "quickstep/src/com/android/quickstep/views/StackedRecentsGeometry.java"
+      - "quickstep/src/com/android/quickstep/views/RecentsView.java"
+      - "quickstep/src/com/android/quickstep/views/RecentsViewUtils.kt"
+      - "quickstep/src/com/android/quickstep/views/TaskView.kt"
+      - "src/com/android/launcher3/LauncherPrefs.kt"
+      - "src/com/android/launcher3/settings/LauncherSettingsScreen.kt"
+      - "res/values/uwu_strings.xml"
+      - "res/values-zh-rCN/uwu_strings.xml"
+      - "tools/qa/recents/StackedRecentsGeometryTest.java"
+      - "tools/qa/test_stacked_recents_integration.py"
+      - ".github/workflows/stacked-recents-geometry-check.yml"
+  pull_request:
+    paths:
+      - "quickstep/src/com/android/quickstep/views/StackedRecentsGeometry.java"
+      - "quickstep/src/com/android/quickstep/views/RecentsView.java"
+      - "quickstep/src/com/android/quickstep/views/RecentsViewUtils.kt"
+      - "quickstep/src/com/android/quickstep/views/TaskView.kt"
+      - "src/com/android/launcher3/LauncherPrefs.kt"
+      - "src/com/android/launcher3/settings/LauncherSettingsScreen.kt"
+      - "res/values/uwu_strings.xml"
+      - "res/values-zh-rCN/uwu_strings.xml"
+      - "tools/qa/recents/StackedRecentsGeometryTest.java"
+      - "tools/qa/test_stacked_recents_integration.py"
+      - ".github/workflows/stacked-recents-geometry-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  jvm-geometry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Check safe defaults and Android 17 stack integration wiring
+        run: python3 -m unittest discover -s tools/qa -p "test_stacked_recents_integration.py" -v
+      - name: Compile and execute isolated stack geometry tests
+        run: |
+          mkdir -p "$RUNNER_TEMP/stacked-recents"
+          javac -d "$RUNNER_TEMP/stacked-recents" \
+            quickstep/src/com/android/quickstep/views/StackedRecentsGeometry.java \
+            tools/qa/recents/StackedRecentsGeometryTest.java
+          java -cp "$RUNNER_TEMP/stacked-recents" \
+            com.android.quickstep.views.StackedRecentsGeometryTest

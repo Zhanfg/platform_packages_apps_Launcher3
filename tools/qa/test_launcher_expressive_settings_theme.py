@@ -27,6 +27,10 @@ class LauncherExpressiveSettingsThemeTest(unittest.TestCase):
             self.theme.index("MaterialExpressiveTheme("),
         )
 
+    def test_expressive_api_opt_in_kept_for_soong_kotlin(self):
+        self.assertIn("import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi", self.theme)
+        self.assertIn("@OptIn(ExperimentalMaterial3ExpressiveApi::class)", self.theme)
+
     def test_platform_tokens_are_forwarded(self):
         for token in (
             "colorScheme = MaterialTheme.colorScheme",

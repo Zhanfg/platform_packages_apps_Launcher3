@@ -83,4 +83,6 @@
     <string name="icon_crop_cancel">取消裁切</string>
     <string name="icon_crop_use">使用</string>
     <string name="icon_crop_instructions">拖动图片调整位置，双指缩放</string>
+    <string name="stacked_recents_experimental_title">堆叠最近任务（实验性）</string>
+    <string name="stacked_recents_experimental_summary">以重叠卡片显示最近任务。若导航手势异常，请关闭以恢复原生布局。</string>
 </resources>

@@ -396,6 +396,12 @@ constructor(
             applyScale()
         }
 
+    // Extra transforms are independent of fullscreen, grid, dismissal, and gesture motion.
+    private var stackedOffsetX = 0f
+    private var stackedOffsetY = 0f
+    private var stackedScale = 1f
+    private var stackedDepth = 0f
+
     private var dismissTranslationX = 0f
         set(value) {
             field = value
@@ -1774,7 +1780,8 @@ constructor(
 
     private fun applyScale() {
         val scale =
-            persistentScale *
+            stackedScale *
+                persistentScale *
                 dismissScale *
                 animateToIconScale *
                 Utilities.mapRange(modalness, 1f, modalScale)
@@ -1791,7 +1798,8 @@ constructor(
                 splitSelectTranslationX +
                 gridEndTranslationX +
                 persistentTranslationX +
-                animateToIconTranslationX
+                animateToIconTranslationX +
+                stackedOffsetX
     }
 
     private fun applyTranslationY() {
@@ -1801,7 +1809,33 @@ constructor(
                 taskResistanceTranslationY +
                 splitSelectTranslationY +
                 persistentTranslationY +
-                animateToIconTranslationY
+                animateToIconTranslationY +
+                stackedOffsetY
+    }
+
+    /**
+     * Applies a visual-only stack transform without overwriting Quickstep's animation offsets.
+     * Pass (0, 0, 1, 0) to restore the native overview layout.
+     */
+    fun setStackedOverviewTransform(offsetX: Float, offsetY: Float, scale: Float, depth: Float) {
+        // Translation changes on nearly every scroll frame; scale and Z often do not.
+        // Updating FullscreenDrawParams on every translation-only frame is unnecessary.
+        if (stackedOffsetX != offsetX) {
+            stackedOffsetX = offsetX
+            applyTranslationX()
+        }
+        if (stackedOffsetY != offsetY) {
+            stackedOffsetY = offsetY
+            applyTranslationY()
+        }
+        if (stackedScale != scale) {
+            stackedScale = scale
+            applyScale()
+        }
+        if (stackedDepth != depth) {
+            stackedDepth = depth
+            translationZ = depth
+        }
     }
 
     private fun onGridProgressChanged() {
@@ -1847,6 +1881,7 @@ constructor(
     }
 
     fun resetPersistentViewTransforms() {
+        setStackedOverviewTransform(0f, 0f, 1f, 0f)
         nonGridTranslationX = 0f
         gridTranslationX = 0f
         gridTranslationY = 0f
@@ -1877,7 +1912,7 @@ constructor(
             splitSelectTranslationY = 0f
         }
         dismissScale = 1f
-        translationZ = 0f
+        translationZ = stackedDepth
         setIconVisibleForGesture(true)
         settledProgressDismiss = 1f
         setColorTint(0f, 0)

@@ -15,11 +15,14 @@
  */
 package com.android.launcher3.settings
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
 import android.os.SystemProperties
 import android.provider.Settings
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
@@ -34,7 +37,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Apps
@@ -50,6 +56,7 @@ import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -73,7 +80,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -91,8 +100,8 @@ import com.android.settingslib.spa.framework.compose.localNavController
 import com.android.settingslib.spa.widget.scaffold.SettingsScaffold
 import com.android.settingslib.spa.widget.ui.Category
 
-// Keep slide and opacity phases synchronized when navigating Settings.
-private const val SETTINGS_NAV_DURATION_MS = 300
+// Expressive navigation uses a spatial spring and shorter, synchronized opacity changes.
+private const val SETTINGS_NAV_FADE_MS = 180
 
 private const val MAIN_ROUTE = "main"
 private const val GRID_ROUTE = "grid"
@@ -107,6 +116,17 @@ private const val AT_A_GLANCE_ROUTE = "at_a_glance"
 fun LauncherSettingsScreen(startRoute: String? = null) {
     val context = LocalContext.current
     val navController = rememberNavController()
+    // Honor the platform animator setting for accessibility and reduced-motion users.
+    val animationsEnabled = ValueAnimator.areAnimatorsEnabled()
+    val spatialSpec = if (animationsEnabled) {
+        spring<IntOffset>(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMedium,
+        )
+    } else {
+        tween<IntOffset>(0)
+    }
+    val fadeSpec = tween<Float>(if (animationsEnabled) SETTINGS_NAV_FADE_MS else 0)
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedIconPack by remember {
         mutableStateOf(LauncherPrefs.get(context).get(LauncherPrefs.ICON_PACK_PACKAGE))
@@ -124,30 +144,30 @@ fun LauncherSettingsScreen(startRoute: String? = null) {
             enterTransition = {
                 slideIntoContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                    animationSpec = tween(SETTINGS_NAV_DURATION_MS),
+                    animationSpec = spatialSpec,
                     initialOffset = { it / 5 },
-                ) + fadeIn(tween(SETTINGS_NAV_DURATION_MS))
+                ) + fadeIn(fadeSpec)
             },
             exitTransition = {
                 slideOutOfContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                    animationSpec = tween(SETTINGS_NAV_DURATION_MS),
+                    animationSpec = spatialSpec,
                     targetOffset = { it / 5 },
-                ) + fadeOut(tween(SETTINGS_NAV_DURATION_MS))
+                ) + fadeOut(fadeSpec)
             },
             popEnterTransition = {
                 slideIntoContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.End,
-                    animationSpec = tween(SETTINGS_NAV_DURATION_MS),
+                    animationSpec = spatialSpec,
                     initialOffset = { it / 5 },
-                ) + fadeIn(tween(SETTINGS_NAV_DURATION_MS))
+                ) + fadeIn(fadeSpec)
             },
             popExitTransition = {
                 slideOutOfContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.End,
-                    animationSpec = tween(SETTINGS_NAV_DURATION_MS),
+                    animationSpec = spatialSpec,
                     targetOffset = { it / 5 },
-                ) + fadeOut(tween(SETTINGS_NAV_DURATION_MS))
+                ) + fadeOut(fadeSpec)
             },
         ) {
             composable(MAIN_ROUTE) {
@@ -283,7 +303,7 @@ fun LauncherSettingsScreen(startRoute: String? = null) {
 
 @Composable
 private fun ResetAction(onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
+    FilledTonalIconButton(onClick = onClick) {
         Icon(
             imageVector = Icons.Outlined.RestartAlt,
             contentDescription = stringResource(R.string.action_reset),
@@ -314,8 +334,8 @@ private fun settingsPreferenceIcon(
 @Composable
 private fun SettingsHomepageIcon(tone: SettingsIconTone, content: @Composable () -> Unit) {
     Surface(
-        modifier = Modifier.size(40.dp),
-        shape = CircleShape,
+        modifier = Modifier.size(48.dp),
+        shape = MaterialTheme.shapes.large,
         color = iconContainerColor(tone),
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -366,13 +386,30 @@ private fun dockPreferenceIcon(): @Composable () -> Unit = {
 
 @Composable
 private fun SettingsSearchBar(query: String, onQueryChange: (String) -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val animationsEnabled = ValueAnimator.areAnimatorsEnabled()
+    val radius by animateDpAsState(
+        targetValue = if (focused) 24.dp else 36.dp,
+        animationSpec = if (animationsEnabled) {
+            spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium)
+        } else {
+            tween(0)
+        },
+        label = "launcher_search_shape",
+    )
+    val containerColor by animateColorAsState(
+        targetValue = if (focused) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surfaceContainerLow,
+        animationSpec = tween(if (animationsEnabled) 240 else 0),
+        label = "launcher_search_color",
+    )
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .heightIn(min = 72.dp),
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+            .heightIn(min = 60.dp),
+        shape = RoundedCornerShape(radius),
+        color = containerColor,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Row(
@@ -391,21 +428,25 @@ private fun SettingsSearchBar(query: String, onQueryChange: (String) -> Unit) {
                 onValueChange = onQueryChange,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 12.dp),
+                    .padding(start = 12.dp)
+                    .onFocusChanged { focused = it.isFocused },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onSurface,
                 ),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 decorationBox = { innerTextField ->
-                    if (query.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.settings_search),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
+                    // Overlay the hint rather than placing it alongside the input.
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (query.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.settings_search),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                        innerTextField()
                     }
-                    innerTextField()
                 },
             )
             if (query.isNotEmpty()) {
@@ -542,6 +583,9 @@ private fun MainSettingsContent(
                     )
                 }
                 NavigationBarHintPreference(context)
+                if (BuildConfig.IS_STUDIO_BUILD || developerOptionsEnabled) {
+                    StackedRecentsPreference(context)
+                }
             }
             Category(title = context.getString(R.string.settings_home_screen_section)) {
                 AddIconsToHomePreference(context)
@@ -685,6 +729,38 @@ private fun NavigationBarHintPreference(context: Context) {
             override val onCheckedChange = { newChecked: Boolean ->
                 LauncherPrefs.get(context).put(
                     LauncherPrefs.SHOW_GESTURE_NAVIGATION_HINT,
+                    newChecked,
+                )
+                enabled = newChecked
+            }
+        }
+    )
+}
+
+/**
+ * Exposed only under Developer options until Quickstep gestures and dismissal pass device QA.
+ * The default remains the AOSP overview layout.
+ */
+@Composable
+private fun StackedRecentsPreference(context: Context) {
+    var enabled by remember(context) {
+        mutableStateOf(LauncherPrefs.get(context).get(LauncherPrefs.STACKED_RECENTS_ENABLED))
+    }
+
+    SwitchPreference(
+        model = object : SwitchPreferenceModel {
+            override val title = context.getString(R.string.stacked_recents_experimental_title)
+            override val summary = {
+                context.getString(R.string.stacked_recents_experimental_summary)
+            }
+            override val icon = settingsPreferenceIcon(
+                Icons.Outlined.Apps,
+                SettingsIconTone.Secondary,
+            )
+            override val checked = { enabled }
+            override val onCheckedChange = { newChecked: Boolean ->
+                LauncherPrefs.get(context).put(
+                    LauncherPrefs.STACKED_RECENTS_ENABLED,
                     newChecked,
                 )
                 enabled = newChecked

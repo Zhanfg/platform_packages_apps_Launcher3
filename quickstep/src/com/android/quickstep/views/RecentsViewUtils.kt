@@ -217,9 +217,16 @@ constructor(
                 }
             } else {
                 val centerPageIndex: Int = recentsView.pageNearestToCenterOfScreen
-                // 2 tasks either side of the central task
-                val lowerIndex = max(0, centerPageIndex - 2)
-                val upperIndex = centerPageIndex + 2
+                // Stacking makes up to four neighboring cards visible. The stock +/-2
+                // thumbnail window remains unchanged when the experiment is off.
+                val neighbors =
+                    if (recentsView.isStackedRecentsActive()) {
+                        StackedRecentsGeometry.STACK_EXIT_DISTANCE.toInt()
+                    } else {
+                        2
+                    }
+                val lowerIndex = max(0, centerPageIndex - neighbors)
+                val upperIndex = centerPageIndex + neighbors
 
                 recentsView.children
                     .drop(lowerIndex)

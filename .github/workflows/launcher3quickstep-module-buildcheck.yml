@@ -1,0 +1,33 @@
+name: Launcher3QuickStep Module Build Script Check
+
+on:
+  pull_request:
+    paths:
+      - "tools/build/build_launcher3quickstep_module.sh"
+      - ".github/workflows/launcher3quickstep-module-buildcheck.yml"
+  push:
+    branches:
+      - "feat/uwu17-stacked-recents-foundation"
+    paths:
+      - "tools/build/build_launcher3quickstep_module.sh"
+      - ".github/workflows/launcher3quickstep-module-buildcheck.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check module-only build script syntax
+        run: bash -n tools/build/build_launcher3quickstep_module.sh
+      - name: Reject missing full Android 17 platform context
+        run: |
+          set +e
+          env -u ANDROID_BUILD_TOP bash tools/build/build_launcher3quickstep_module.sh example-userdebug >"$RUNNER_TEMP/build.log" 2>&1
+          rc=$?
+          set -e
+          test "$rc" -eq 3
+          grep -q 'ANDROID_BUILD_TOP is required' "$RUNNER_TEMP/build.log"

@@ -142,6 +142,7 @@ import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.Insettable;
 import com.android.launcher3.MotionEventsUtils;
 import com.android.launcher3.PagedView;
+import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.R;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.anim.AnimatedFloat;
@@ -519,6 +520,8 @@ public abstract class RecentsView<
     @Nullable
     protected Float mLastComputedTaskEndPushOutDistance = null;
     protected boolean mEnableDrawingLiveTile = false;
+    // Avoid iterating over task cards on every scroll frame when stack mode is disabled.
+    private boolean mStackedTransformsApplied = false;
     protected final Rect mTempRect = new Rect();
     protected final RectF mTempRectF = new RectF();
     private final PointF mTempPointF = new PointF();
@@ -1380,8 +1383,12 @@ public abstract class RecentsView<
             int screenEnd = screenStart + getPagedOrientationHandler().getMeasuredSize(this);
             return isTaskViewWithinBounds(tv, screenStart, screenEnd, /*taskViewTranslation=*/ 0);
         } else {
-            // For now, just check if it's the active task or an adjacent task
-            return Math.abs(indexOfChild(tv) - getNextPage()) <= 1;
+            // An overlapping stack exposes more than the usual neighboring cards. Keep
+            // their thumbnails eligible for loading, or they can appear blank on swipe.
+            // The native visibility limit stays unchanged when the experiment is off.
+            final int neighbors = mStackedTransformsApplied
+                    ? (int) StackedRecentsGeometry.STACK_EXIT_DISTANCE : 1;
+            return Math.abs(indexOfChild(tv) - getNextPage()) <= neighbors;
         }
     }
 
@@ -1523,11 +1530,24 @@ public abstract class RecentsView<
             mHelper.startPreloading();
         }
         mOverviewStateEnabled = enabled;
+        if (!enabled) {
+            // Do not carry stacking offsets into the app launch / home gesture animation.
+            clearStackedRecentsTransforms();
+        }
         updateTaskStackListenerState();
         mOrientationState.setRotationWatcherEnabled(enabled);
         if (!enabled) {
             mSplitBoundsConfig = null;
             mTaskOverlayFactory.clearAllActiveState();
+        } else if (LauncherPrefs.get(getContext()).get(LauncherPrefs.STACKED_RECENTS_ENABLED)) {
+            // Initial entry can have no scroll event. Apply the stack after this layout
+            // frame and reload the extra visible task thumbnails before user interaction.
+            post(() -> {
+                if (mOverviewStateEnabled && isAttachedToWindow()) {
+                    updateCurveProperties();
+                    loadVisibleTaskData();
+                }
+            });
         }
         updateLocusId();
     }
@@ -1670,7 +1690,8 @@ public abstract class RecentsView<
                         if (!clearAllButtonDeadZoneConsumed && !cameFromNavBar
                                 && !mTaskViewDeadZoneRect.contains(adjustedX, y)
                                 && !mTopRowDeadZoneRect.contains(adjustedX, y)
-                                && !mBottomRowDeadZoneRect.contains(adjustedX, y)) {
+                                && !mBottomRowDeadZoneRect.contains(adjustedX, y)
+                                && !isTouchInsideStackCard(x, y)) {
                             mTouchDownToStartHome = true;
                         }
                     }
@@ -1681,6 +1702,34 @@ public abstract class RecentsView<
         }
 
         return isHandlingTouch();
+    }
+
+    /**
+     * The original empty-area dead zone uses the untransformed carousel geometry.
+     * In stacked overview a card can move into that area; do not interpret touches
+     * on its visually transformed bounds as "tap outside to go home".
+     *
+     * ViewGroup still owns child dispatch, Z sorting, and gesture interception.
+     * This method intentionally does not launch or consume any touch itself.
+     */
+    private boolean isTouchInsideStackCard(float x, float y) {
+        if (!mStackedTransformsApplied) {
+            return false;
+        }
+        final float contentX = x + getScrollX();
+        final float contentY = y + getScrollY();
+        for (TaskView task : getTaskViews()) {
+            if (task.getVisibility() != VISIBLE || task.getAlpha() <= 0f) {
+                continue;
+            }
+            mTempRectF.set(0f, 0f, task.getWidth(), task.getHeight());
+            task.getMatrix().mapRect(mTempRectF);
+            mTempRectF.offset(task.getLeft(), task.getTop());
+            if (mTempRectF.contains(contentX, contentY)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -2388,14 +2437,75 @@ public abstract class RecentsView<
      */
     public void updateCurveProperties() {
         if (getPageCount() == 0 || getPageAt(0).getMeasuredWidth() == 0) {
+            if (!hasTaskViews()) {
+                clearStackedRecentsTransforms();
+            }
             return;
         }
         int scroll = getPagedOrientationHandler().getPrimaryScroll(this);
         mClearAllButton.onRecentsViewScroll(scroll, mOverviewGridEnabled);
+        updateStackedRecents(scroll);
 
         // The clear all button is pinned and always visible, so the actions bar no longer
         // alternates with it at the end of the strip.
         mActionsView.getIndexScrollAlpha().updateValue(1f);
+    }
+
+    /**
+     * Experimental iOS-like stack rendering. Keep Quickstep's page scroll and gesture math
+     * untouched: the additional transforms are composed inside TaskView and can be reset.
+     */
+    private void updateStackedRecents(int scroll) {
+        final boolean enabled =
+                LauncherPrefs.get(getContext()).get(LauncherPrefs.STACKED_RECENTS_ENABLED)
+                        && mOverviewStateEnabled
+                        && !showAsGrid()
+                        && !isSplitSelectionActive()
+                        && !showAsFullscreen()
+                        && !mContainer.getDeviceProfile().getDeviceProperties().isLargeScreen();
+        if (!enabled || !hasTaskViews()) {
+            clearStackedRecentsTransforms();
+            return;
+        }
+        mStackedTransformsApplied = true;
+        final var orientation = getPagedOrientationHandler();
+        final int viewportSize = orientation.getPrimaryValue(getWidth(), getHeight());
+        // PagedView applies scale and pivot when calculating its actual screen center.
+        // Using scroll + half the width drifts during overview transition animations.
+        final float viewportCenter = getScreenCenter(scroll);
+        final boolean horizontal = orientation.getPrimaryValue(1, 0) == 1;
+
+        for (TaskView task : getTaskViews()) {
+            final int cardSize = orientation.getMeasuredSize(task);
+            if (viewportSize <= 0 || cardSize <= 0) {
+                task.setStackedOverviewTransform(0f, 0f, 1f, 0f);
+                continue;
+            }
+            final float cardCenter = orientation.getChildStart(task) + cardSize * 0.5f;
+            final StackedRecentsGeometry.Transform transform = StackedRecentsGeometry.calculate(
+                    cardCenter - viewportCenter, cardSize + getPageSpacing(), cardSize);
+            task.setStackedOverviewTransform(
+                    horizontal ? transform.primaryOffsetPx : 0f,
+                    horizontal ? 0f : transform.primaryOffsetPx,
+                    transform.scaleFactor,
+                    transform.depthPx);
+        }
+    }
+
+    /** The thumbnail loader must use the same visible-card window as the stack renderer. */
+    public boolean isStackedRecentsActive() {
+        return mStackedTransformsApplied;
+    }
+
+    /** Restores stock hit regions, Z-order and animation coordinates on exit. */
+    private void clearStackedRecentsTransforms() {
+        if (!mStackedTransformsApplied) {
+            return;
+        }
+        mStackedTransformsApplied = false;
+        for (TaskView task : getTaskViews()) {
+            task.setStackedOverviewTransform(0f, 0f, 1f, 0f);
+        }
     }
 
     @Override
@@ -2501,6 +2611,7 @@ public abstract class RecentsView<
             ? extends StatefulContainer<STATE_TYPE>> getStateManager();
 
     public void reset() {
+        clearStackedRecentsTransforms();
         Log.d(TAG, "reset - mEnableDrawingLiveTile: " + mEnableDrawingLiveTile
                 + ", mRecentsAnimationController: " + mRecentsAnimationController);
         setCurrentTask(-1);
@@ -3868,6 +3979,9 @@ public abstract class RecentsView<
         setImportantForAccessibility(isModal() ? IMPORTANT_FOR_ACCESSIBILITY_NO
                 : IMPORTANT_FOR_ACCESSIBILITY_AUTO);
         recalculateTaskViewScreenEdgeIntersections();
+        // Removing/reordering a task changes the native page centers. Recompute the
+        // visual stack after layout instead of leaving stale transforms until a swipe.
+        updateCurveProperties();
     }
 
     private void updatePivots() {
@@ -5744,6 +5858,10 @@ public abstract class RecentsView<
     @Override
     protected void onScrollChanged(int l, int t, int oldl, int oldt) {
         super.onScrollChanged(l, t, oldl, oldt);
+        // This is the actual per-frame scroll callback. updateCurveProperties() is not
+        // called by PagedView for every gesture frame, so the stack must track scroll here.
+        // Do not rerun the unrelated Clear All / actions alpha calculations.
+        updateStackedRecents(getPagedOrientationHandler().getPrimaryScroll(this));
         dispatchScrollChanged();
     }
 

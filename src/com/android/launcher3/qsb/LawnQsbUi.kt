@@ -6,6 +6,7 @@
  */
 package com.android.launcher3.qsb
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.drawable.LayerDrawable
@@ -16,6 +17,9 @@ import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -150,7 +154,7 @@ fun buildQsbStyle(
     strokeWidth: Float,
 ) = QsbStyle(
     backgroundAlpha = backgroundAlpha / 100f,
-    backgroundColor = if (themed) Themes.getColorBackgroundFloating(context) else backgroundColor,
+    backgroundColor = if (themed) LauncherExpressiveSearchColors.container(context) else backgroundColor,
     strokeColor = if (strokeColor == 0) Themes.getColorAccent(context) else strokeColor,
     strokeWidthPx = strokeWidth,
     cornerRadiusPx = getHotseatQsbCornerRadius(context, cornerRadius),
@@ -171,6 +175,7 @@ fun LawnQsbUi(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
+    val animationsEnabled = ValueAnimator.areAnimatorsEnabled()
     val shape = RoundedCornerShape(with(density) { style.cornerRadiusPx.toDp() })
     val strokeWidth = with(density) { style.strokeWidthPx.toDp() }
     val container = modifier
@@ -199,7 +204,20 @@ fun LawnQsbUi(
         Spacer(Modifier.weight(1f))
         AnimatedContent(
             targetState = state.endIcons.filter(QsbIconState::visible),
-            transitionSpec = { fadeIn() togetherWith fadeOut() using SizeTransform(clip = false) },
+            transitionSpec = {
+                val fadeDuration = if (animationsEnabled) 180 else 0
+                (fadeIn(tween(fadeDuration)) togetherWith fadeOut(tween(fadeDuration))) using
+                    SizeTransform(clip = false) { _, _ ->
+                        if (animationsEnabled) {
+                            spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMedium,
+                            )
+                        } else {
+                            tween(0)
+                        }
+                    }
+            },
             label = "endIcons",
             contentAlignment = Alignment.CenterEnd,
         ) { icons ->
