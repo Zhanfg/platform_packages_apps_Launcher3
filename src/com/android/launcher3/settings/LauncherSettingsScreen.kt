@@ -15,11 +15,14 @@
  */
 package com.android.launcher3.settings
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
 import android.os.SystemProperties
 import android.provider.Settings
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
@@ -35,6 +38,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Apps
@@ -73,7 +78,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -91,8 +98,8 @@ import com.android.settingslib.spa.framework.compose.localNavController
 import com.android.settingslib.spa.widget.scaffold.SettingsScaffold
 import com.android.settingslib.spa.widget.ui.Category
 
-// Keep slide and opacity phases synchronized when navigating Settings.
-private const val SETTINGS_NAV_DURATION_MS = 300
+// Expressive navigation uses a spatial spring and shorter, synchronized opacity changes.
+private const val SETTINGS_NAV_FADE_MS = 180
 
 private const val MAIN_ROUTE = "main"
 private const val GRID_ROUTE = "grid"
@@ -107,6 +114,17 @@ private const val AT_A_GLANCE_ROUTE = "at_a_glance"
 fun LauncherSettingsScreen(startRoute: String? = null) {
     val context = LocalContext.current
     val navController = rememberNavController()
+    // Honor the platform animator setting for accessibility and reduced-motion users.
+    val animationsEnabled = ValueAnimator.areAnimatorsEnabled()
+    val spatialSpec = if (animationsEnabled) {
+        spring<IntOffset>(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMedium,
+        )
+    } else {
+        tween<IntOffset>(0)
+    }
+    val fadeSpec = tween<Float>(if (animationsEnabled) SETTINGS_NAV_FADE_MS else 0)
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedIconPack by remember {
         mutableStateOf(LauncherPrefs.get(context).get(LauncherPrefs.ICON_PACK_PACKAGE))
@@ -124,30 +142,30 @@ fun LauncherSettingsScreen(startRoute: String? = null) {
             enterTransition = {
                 slideIntoContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                    animationSpec = tween(SETTINGS_NAV_DURATION_MS),
+                    animationSpec = spatialSpec,
                     initialOffset = { it / 5 },
-                ) + fadeIn(tween(SETTINGS_NAV_DURATION_MS))
+                ) + fadeIn(fadeSpec)
             },
             exitTransition = {
                 slideOutOfContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                    animationSpec = tween(SETTINGS_NAV_DURATION_MS),
+                    animationSpec = spatialSpec,
                     targetOffset = { it / 5 },
-                ) + fadeOut(tween(SETTINGS_NAV_DURATION_MS))
+                ) + fadeOut(fadeSpec)
             },
             popEnterTransition = {
                 slideIntoContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.End,
-                    animationSpec = tween(SETTINGS_NAV_DURATION_MS),
+                    animationSpec = spatialSpec,
                     initialOffset = { it / 5 },
-                ) + fadeIn(tween(SETTINGS_NAV_DURATION_MS))
+                ) + fadeIn(fadeSpec)
             },
             popExitTransition = {
                 slideOutOfContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.End,
-                    animationSpec = tween(SETTINGS_NAV_DURATION_MS),
+                    animationSpec = spatialSpec,
                     targetOffset = { it / 5 },
-                ) + fadeOut(tween(SETTINGS_NAV_DURATION_MS))
+                ) + fadeOut(fadeSpec)
             },
         ) {
             composable(MAIN_ROUTE) {
