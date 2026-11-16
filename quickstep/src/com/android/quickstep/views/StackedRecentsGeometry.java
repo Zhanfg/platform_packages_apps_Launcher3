@@ -26,6 +26,8 @@ public final class StackedRecentsGeometry {
     private static final float CARD_STEP_FRACTION = 0.29f;
     private static final float SCALE_LOSS_PER_PAGE = 0.075f;
     private static final float MAX_STACK_DISTANCE = 3.0f;
+    /** Distant pages must remain in their native positions, not collapse into one pile. */
+    public static final float STACK_EXIT_DISTANCE = 4.0f;
 
     private StackedRecentsGeometry() {}
 
@@ -64,14 +66,27 @@ public final class StackedRecentsGeometry {
         if (!Float.isFinite(pageDistance)) {
             return new Transform(0f, 1f, 0f);
         }
-        final float limitedDistance =
-                Math.min(Math.abs(pageDistance), MAX_STACK_DISTANCE);
-        final float direction = Math.signum(pageDistance);
+        final float distance = Math.abs(pageDistance);
+        if (distance >= STACK_EXIT_DISTANCE) {
+            return new Transform(0f, 1f, 0f);
+        }
+
+        // Blend the last page out over a full page stride. Smoothstep gives a continuous
+        // value and first derivative at both boundaries, avoiding a snap during swipes.
+        final float exitProgress = Math.max(0f, Math.min(1f,
+                (distance - MAX_STACK_DISTANCE)
+                        / (STACK_EXIT_DISTANCE - MAX_STACK_DISTANCE)));
+        final float smoothExit = exitProgress * exitProgress * (3f - 2f * exitProgress);
+        final float weight = 1f - smoothExit;
+
+        // Continue moving the outgoing card during the blend, rather than clamping all
+        // distant cards to the same center and competing for the same touch target.
         final float targetCenterDistance =
-                direction * limitedDistance * cardSizePx * CARD_STEP_FRACTION;
-        final float translation = targetCenterDistance - centerDistancePx;
-        final float scale = 1f - limitedDistance * SCALE_LOSS_PER_PAGE;
-        final float depth = (MAX_STACK_DISTANCE - limitedDistance) * 2f;
+                pageDistance * cardSizePx * CARD_STEP_FRACTION;
+        final float translation = (targetCenterDistance - centerDistancePx) * weight;
+        final float scale = 1f - Math.min(distance, MAX_STACK_DISTANCE)
+                * SCALE_LOSS_PER_PAGE * weight;
+        final float depth = Math.max(0f, MAX_STACK_DISTANCE - distance) * 2f * weight;
         return new Transform(translation, scale, depth);
     }
 }
