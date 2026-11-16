@@ -61,6 +61,16 @@ def merge(adapter: Path, fork: Path):
                     files += 1
 
     for qualifier, contents in sorted(values.items()):
+        # A color state-list file (res/color/name.xml) and a value resource
+        # (<color name="name">) represent the same Android resource ID. AAPT2
+        # rejects both in one Gradle source set. Prefer the richer state-list.
+        color_qualifier = "color" + qualifier[len("values"):]
+        color_dir = output / color_qualifier
+        if color_dir.is_dir():
+            for color_xml in color_dir.glob("*.xml"):
+                if contents.pop(("color", color_xml.stem), None) is not None:
+                    conflicts += 1
+
         dst = output / qualifier
         dst.mkdir(parents=True, exist_ok=True)
         for existing in dst.glob("*.xml"):
