@@ -1539,6 +1539,15 @@ public abstract class RecentsView<
         if (!enabled) {
             mSplitBoundsConfig = null;
             mTaskOverlayFactory.clearAllActiveState();
+        } else if (LauncherPrefs.get(getContext()).get(LauncherPrefs.STACKED_RECENTS_ENABLED)) {
+            // Initial entry can have no scroll event. Apply the stack after this layout
+            // frame and reload the extra visible task thumbnails before user interaction.
+            post(() -> {
+                if (mOverviewStateEnabled && isAttachedToWindow()) {
+                    updateCurveProperties();
+                    loadVisibleTaskData();
+                }
+            });
         }
         updateLocusId();
     }
