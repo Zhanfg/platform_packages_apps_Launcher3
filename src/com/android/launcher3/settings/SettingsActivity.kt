@@ -18,14 +18,13 @@ package com.android.launcher3.settings
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.android.settingslib.spa.framework.theme.SettingsTheme
 
 class SettingsActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val startRoute = intent.getStringExtra(EXTRA_START_ROUTE)
-        setContent { SettingsTheme { LauncherSettingsScreen(startRoute) } }
+        setContent { LauncherExpressiveSettingsTheme { LauncherSettingsScreen(startRoute) } }
     }
 
     companion object {
