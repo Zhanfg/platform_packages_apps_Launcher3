@@ -42,7 +42,7 @@ class StackedRecentsSourceTest(unittest.TestCase):
             "!showAsFullscreen()",
             ".isLargeScreen()",
             "task.setStackedOverviewTransform(0f, 0f, 1f, 0f)",
-            "if (!enabled)",
+            "if (!enabled || !hasTaskViews())",
             "clearStackedRecentsTransforms();",
             "mStackedTransformsApplied = true",
         ):
