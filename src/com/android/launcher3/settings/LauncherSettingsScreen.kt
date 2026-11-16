@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
@@ -55,6 +56,7 @@ import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -301,7 +303,7 @@ fun LauncherSettingsScreen(startRoute: String? = null) {
 
 @Composable
 private fun ResetAction(onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
+    FilledTonalIconButton(onClick = onClick) {
         Icon(
             imageVector = Icons.Outlined.RestartAlt,
             contentDescription = stringResource(R.string.action_reset),
@@ -332,8 +334,8 @@ private fun settingsPreferenceIcon(
 @Composable
 private fun SettingsHomepageIcon(tone: SettingsIconTone, content: @Composable () -> Unit) {
     Surface(
-        modifier = Modifier.size(40.dp),
-        shape = CircleShape,
+        modifier = Modifier.size(48.dp),
+        shape = MaterialTheme.shapes.large,
         color = iconContainerColor(tone),
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -384,13 +386,30 @@ private fun dockPreferenceIcon(): @Composable () -> Unit = {
 
 @Composable
 private fun SettingsSearchBar(query: String, onQueryChange: (String) -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val animationsEnabled = ValueAnimator.areAnimatorsEnabled()
+    val radius by animateDpAsState(
+        targetValue = if (focused) 24.dp else 36.dp,
+        animationSpec = if (animationsEnabled) {
+            spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium)
+        } else {
+            tween(0)
+        },
+        label = "launcher_search_shape",
+    )
+    val containerColor by animateColorAsState(
+        targetValue = if (focused) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surfaceContainerLow,
+        animationSpec = tween(if (animationsEnabled) 240 else 0),
+        label = "launcher_search_color",
+    )
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .heightIn(min = 72.dp),
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+            .heightIn(min = 60.dp),
+        shape = RoundedCornerShape(radius),
+        color = containerColor,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Row(
@@ -409,21 +428,25 @@ private fun SettingsSearchBar(query: String, onQueryChange: (String) -> Unit) {
                 onValueChange = onQueryChange,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 12.dp),
+                    .padding(start = 12.dp)
+                    .onFocusChanged { focused = it.isFocused },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onSurface,
                 ),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 decorationBox = { innerTextField ->
-                    if (query.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.settings_search),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
+                    // Overlay the hint rather than placing it alongside the input.
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (query.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.settings_search),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                        innerTextField()
                     }
-                    innerTextField()
                 },
             )
             if (query.isNotEmpty()) {
