@@ -34,8 +34,9 @@ import sys
 p = Path(sys.argv[1])
 s = p.read_text()
 target = "'res_merged', 'quickstep/res'"
-if s.count(target) != 1:
+if s.count(target) not in (1, 2):
     raise SystemExit("Adapter Quickstep resource graph changed; refusing ambiguous build")
+# This Gradle scaffold declares the same pair in both full and Go flavors.
 p.write_text(s.replace(target, "'res_merged'"))
 PY
 
