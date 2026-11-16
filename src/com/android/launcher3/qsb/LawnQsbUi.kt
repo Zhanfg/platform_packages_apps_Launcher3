@@ -150,7 +150,7 @@ fun buildQsbStyle(
     strokeWidth: Float,
 ) = QsbStyle(
     backgroundAlpha = backgroundAlpha / 100f,
-    backgroundColor = if (themed) Themes.getColorBackgroundFloating(context) else backgroundColor,
+    backgroundColor = if (themed) LauncherExpressiveSearchColors.container(context) else backgroundColor,
     strokeColor = if (strokeColor == 0) Themes.getColorAccent(context) else strokeColor,
     strokeWidthPx = strokeWidth,
     cornerRadiusPx = getHotseatQsbCornerRadius(context, cornerRadius),
