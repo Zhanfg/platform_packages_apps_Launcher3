@@ -43,6 +43,36 @@ p.write_text(s, encoding="utf-8")
 print("AGP 9 SDK attributes removed from staging manifest; overrideLibrary preserved")
 PY
 
+# AAPT2 requires the Soong aconfig feature_flags file for conditional permissions.
+# The external Gradle adapter has no platform aconfig resolution. Safely OMIT only
+# conditional permissions from this unsigned TEST build, rather than accidentally
+# converting them into unconditional privileged permission requests. This staging
+# manifest must never be used as the real uwuAOSP Soong manifest.
+python3 - "$ADAPTER/quickstep/AndroidManifest.xml" <<'PY'
+from pathlib import Path
+import sys
+import xml.etree.ElementTree as ET
+p = Path(sys.argv[1])
+android_ns = "http://schemas.android.com/apk/res/android"
+ET.register_namespace("android", android_ns)
+ET.register_namespace("tools", "http://schemas.android.com/tools")
+parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
+tree = ET.parse(p, parser=parser)
+root = tree.getroot()
+removed = []
+for child in list(root):
+    if child.attrib.get(f"{{{android_ns}}}featureFlag") is None:
+        continue
+    if child.tag != "uses-permission":
+        raise SystemExit("Unsupported flagged manifest element: " + child.tag)
+    removed.append(child.attrib.get(f"{{{android_ns}}}name", "(unknown)"))
+    root.remove(child)
+if len(removed) != 3:
+    raise SystemExit(f"Expected 3 conditional permissions in pinned fork, got {removed}")
+tree.write(p, encoding="utf-8", xml_declaration=True)
+print("PROBE ONLY: omitted conditional permissions requiring Soong aconfig:", removed)
+PY
+
 # Flatten Soong resource overlays into ONE Gradle source directory. We cannot point
 # Gradle at both Quickstep res and premerged res or it treats same-name colors/styles
 # as errors instead of applying the original Soong priority rules.
