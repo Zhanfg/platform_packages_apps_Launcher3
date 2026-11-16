@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PREFS = ROOT / "src/com/android/launcher3/LauncherPrefs.kt"
 RECENTS = ROOT / "quickstep/src/com/android/quickstep/views/RecentsView.java"
 TASK = ROOT / "quickstep/src/com/android/quickstep/views/TaskView.kt"
+UTILS = ROOT / "quickstep/src/com/android/quickstep/views/RecentsViewUtils.kt"
 SETTINGS = ROOT / "src/com/android/launcher3/settings/LauncherSettingsScreen.kt"
 
 
@@ -20,6 +21,7 @@ class StackedRecentsSourceTest(unittest.TestCase):
         cls.prefs = PREFS.read_text(encoding="utf-8")
         cls.recents = RECENTS.read_text(encoding="utf-8")
         cls.task = TASK.read_text(encoding="utf-8")
+        cls.utils = UTILS.read_text(encoding="utf-8")
         cls.settings = SETTINGS.read_text(encoding="utf-8")
 
     def test_disabled_by_default(self):
@@ -83,6 +85,17 @@ class StackedRecentsSourceTest(unittest.TestCase):
         self.assertIn("StackedRecentsGeometry.STACK_EXIT_DISTANCE", method)
         # When disabled, the original AOSP one-neighbor visibility behavior remains.
         self.assertIn(": 1;", method)
+
+    def test_actual_thumbnail_loader_uses_stacked_window(self):
+        self.assertIn("public boolean isStackedRecentsActive()", self.recents)
+        loader = self.utils.split("fun getVisibleTaskIds(): List<Int>", 1)[1].split(
+            "/** Returns all the TaskViews in the top row", 1
+        )[0]
+        self.assertIn("recentsView.isStackedRecentsActive()", loader)
+        self.assertIn("StackedRecentsGeometry.STACK_EXIT_DISTANCE.toInt()", loader)
+        self.assertIn("val lowerIndex = max(0, centerPageIndex - neighbors)", loader)
+        self.assertIn("val upperIndex = centerPageIndex + neighbors", loader)
+        self.assertIn("else {\n                        2", loader)
 
     def test_task_reflow_recalculates_stack_after_layout(self):
         method = self.recents.split(
