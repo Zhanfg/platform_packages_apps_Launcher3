@@ -7,6 +7,7 @@ on:
     paths:
       - "quickstep/src/com/android/quickstep/views/StackedRecentsGeometry.java"
       - "quickstep/src/com/android/quickstep/views/RecentsView.java"
+      - "quickstep/src/com/android/quickstep/views/RecentsViewUtils.kt"
       - "quickstep/src/com/android/quickstep/views/TaskView.kt"
       - "src/com/android/launcher3/LauncherPrefs.kt"
       - "src/com/android/launcher3/settings/LauncherSettingsScreen.kt"
@@ -19,6 +20,7 @@ on:
     paths:
       - "quickstep/src/com/android/quickstep/views/StackedRecentsGeometry.java"
       - "quickstep/src/com/android/quickstep/views/RecentsView.java"
+      - "quickstep/src/com/android/quickstep/views/RecentsViewUtils.kt"
       - "quickstep/src/com/android/quickstep/views/TaskView.kt"
       - "src/com/android/launcher3/LauncherPrefs.kt"
       - "src/com/android/launcher3/settings/LauncherSettingsScreen.kt"
