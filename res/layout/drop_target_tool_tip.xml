@@ -28,4 +28,4 @@
     android:paddingTop="6.5dp"
     android:textSize="14sp"
     android:fontFamily="sans-serif"
-    android:textColor="?android:attr/colorForeground" />
+    android:textColor="@color/materialColorOnSurface" />
