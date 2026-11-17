@@ -1,0 +1,27 @@
+name: Launcher Settings Motion Static Check
+
+on:
+  push:
+    branches:
+      - "fix/**"
+    paths:
+      - "src/com/android/launcher3/settings/LauncherSettingsScreen.kt"
+      - "tools/qa/test_settings_navigation_motion.py"
+      - ".github/workflows/launcher-settings-motion-check.yml"
+  pull_request:
+    paths:
+      - "src/com/android/launcher3/settings/LauncherSettingsScreen.kt"
+      - "tools/qa/test_settings_navigation_motion.py"
+      - ".github/workflows/launcher-settings-motion-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  source-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Launcher Settings transition phase alignment
+        run: python3 -m unittest discover -s tools/qa -p "test_settings_navigation_motion.py" -v
